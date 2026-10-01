@@ -269,11 +269,22 @@ a:hover{text-decoration-color:var(--indigo)}
 #view-ratecard .drop:hover{color:var(--no)}
 #view-ratecard .rate{font-weight:600;color:var(--ink-strong)}
 #view-ratecard tr.off td{opacity:.45}
+#view-ratecard tr.divider td{background:var(--pink-pale);padding:7px 12px;font-size:11px;font-weight:600;
+  letter-spacing:.05em;text-transform:uppercase;color:var(--ink-label);border-bottom:1px solid var(--line)}
 #view-ratecard tr.off td:first-child{opacity:1}
 #view-ratecard .pick{width:18px;height:18px;accent-color:var(--indigo);cursor:pointer}
 #view-ratecard th.tick,#view-ratecard td.tick{width:40px;text-align:center}
 #view-ratecard .selbar{background:var(--indigo);color:#fff;border-radius:10px;padding:10px 15px;
   margin-bottom:14px;font-size:13.5px;display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+#view-ratecard .prevbar{background:var(--warn-bg);border:1px solid var(--warn-line);color:var(--warn);
+  border-radius:10px;padding:11px 15px;margin-bottom:14px;font-size:13.5px;display:flex;
+  justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+#view-ratecard .prevbar b{font-weight:600}
+#view-ratecard .prevbar button{background:var(--indigo);color:#fff;border:none;border-radius:7px;
+  padding:7px 14px;font-size:13px;font-weight:600}
+#view-ratecard .prevbar button:hover{background:var(--indigo-deep)}
+#view-ratecard .pcard .row > span{flex-shrink:0}
+#view-ratecard .pcard .row{align-items:center}
 #view-ratecard .selbar b{font-weight:600}
 
 /* flight weeks */
@@ -902,7 +913,7 @@ body.submitted #to-top{opacity:0;visibility:hidden}
    It looks like: https://hook.us1.make.com/abc123...
    Leave it empty and the Submit button will say it needs setting.
    ───────────────────────────────────────────────────────────── */
-const WEBHOOK_URL = "https://hook.us1.make.com/8sfu0kyegdf18lma6ijwdnv2ex4qxetl";
+const WEBHOOK_URL = "";
 /* Webhook for the Make scenario that SAVES a finished rate card. */
 const RATECARD_WEBHOOK_URL = "";
 
@@ -1593,7 +1604,7 @@ function showThanks(payload) {
    CONFIGURATION — the Make custom webhook that RETURNS responses
    (the scenario ending in a Webhook Response module).
    ───────────────────────────────────────────────────────────── */
-const STATUS_URL = "https://hook.us1.make.com/h9pkoln7mklilwc6ge319qutewqa2fgb";
+const STATUS_URL = "";
 const STATUS_TOKEN = "";
 
 
@@ -2071,11 +2082,8 @@ window.__initResponses = function () {
     </div>`;
   }
 
-  function kTableHTML() {
-    return `<div class="tbl"><table>
-      <thead><tr><th class="tick"></th><th>Show</th><th>Offering</th><th>Flight weeks</th>
-        <th class="num">Downloads / ep</th><th class="num">CPM</th><th class="num">Rate</th></tr></thead>
-      <tbody>${K.rows.map(r => `<tr class="${r.selected ? "" : "off"}">
+  function kRowHTML(r) {
+    return `<tr class="${r.selected ? "" : "off"}">
         <td class="tick"><input class="pick" type="checkbox" data-kpick="${r.id}"${r.selected ? " checked" : ""}
           aria-label="Include ${esc(r.name)} on this rate card"></td>
         <td><div class="showcell">${kArt(r)}<div><div class="nm">${esc(r.name)}</div>
@@ -2088,7 +2096,22 @@ window.__initResponses = function () {
         <td class="num"><input class="cell-in" type="number" min="0" step="500" value="${r.downloads}" data-kedit="downloads" data-id="${r.id}"></td>
         <td class="num"><input class="cell-in" type="number" min="0" step="1" value="${r.cpm}" data-kedit="cpm" data-id="${r.id}"></td>
         <td class="num rate" data-krate="${r.id}">${fmtMoney(kRate(r))}</td>
-      </tr>`).join("")}</tbody>
+      </tr>`;
+  }
+
+  function kTableHTML() {
+    return `<div class="tbl"><table>
+      <thead><tr><th class="tick"></th><th>Show</th><th>Offering</th><th>Flight weeks</th>
+        <th class="num">Downloads / ep</th><th class="num">CPM</th><th class="num">Rate</th></tr></thead>
+      <tbody>${(() => {
+        /* selected first so they're together at the top, each group keeping its order */
+        const on = K.rows.filter(r => r.selected), off = K.rows.filter(r => !r.selected);
+        const divider = (on.length && off.length)
+          ? `<tr class="divider"><td colspan="7">Not on this rate card</td></tr>` : "";
+        return [...on, ...off].map((r, i) =>
+          (i === on.length && divider ? divider : "") + kRowHTML(r)).join("");
+      })()}</tbody>
+</tbody>
       <tfoot><tr><td class="tick"></td><td>Total of selected</td><td></td><td></td>
         <td class="num">${fmtNum(kReach())}</td><td></td>
         <td class="num">${fmtMoney(kTotal())}</td></tr></tfoot>
@@ -2099,15 +2122,23 @@ window.__initResponses = function () {
     return `<div class="cards">${kPicked().map(r => `<article class="pcard">
       <div class="top">${kArt(r)}<div><div class="nm" style="font-size:16px">${esc(r.name)}</div>
         ${r.genre || r.hosts ? `<div class="sub">${esc([r.genre, r.hosts].filter(Boolean).join(" · "))}</div>` : ""}
-      </div></div>
-      <div class="row"><span>Offering</span><b>${esc(r.offering)}</b></div>
-      <div class="row"><span>Flight weeks</span><b>${r.weeks.length
-        ? esc(r.weeks.slice().sort().map(fmtWeek).join(", ")) : "To be agreed"}</b></div>
-      <div class="row"><span>Audience / episode</span><b>${fmtNum(r.downloads)}</b></div>
-      <div class="row"><span>CPM</span><b>${fmtMoney(r.cpm)}</b></div>
-      <div class="price"><span>Rate</span><b>${fmtMoney(kRate(r))}</b></div>
+      </div>
+      <button class="drop" data-kpick-off="${r.id}" aria-label="Remove ${esc(r.name)} from this rate card"
+        style="margin-left:auto">×</button></div>
+      <div class="row"><span>Offering</span>
+        <select class="sel" data-kedit="offering" data-id="${r.id}" style="min-width:170px">
+          ${kOfferings.map(o => `<option${o === r.offering ? " selected" : ""}>${esc(o)}</option>`).join("")}
+        </select></div>
+      <div class="row" style="align-items:flex-start"><span>Flight weeks</span><div>${kWeekPicker(r)}</div></div>
+      <div class="row"><span>Audience / episode</span>
+        <input class="cell-in" type="number" min="0" step="500" value="${r.downloads}"
+          data-kedit="downloads" data-id="${r.id}"></div>
+      <div class="row"><span>CPM</span>
+        <input class="cell-in" type="number" min="0" step="1" value="${r.cpm}"
+          data-kedit="cpm" data-id="${r.id}"></div>
+      <div class="price"><span>Rate</span><b data-krate="${r.id}">${fmtMoney(kRate(r))}</b></div>
     </article>`).join("")}</div>
-    <div class="ptotal"><span>Total if they take every show</span><b>${fmtMoney(kTotal())}</b></div>`;
+    <div class="ptotal"><span>Total if they take every show</span><b id="k-ptotal">${fmtMoney(kTotal())}</b></div>`;
   }
 
   function kListHTML() {
@@ -2116,13 +2147,19 @@ window.__initResponses = function () {
         <div class="nm" style="font-size:15px">${esc(r.name)}</div>
         ${r.genre || r.hosts ? `<div class="sub">${esc([r.genre, r.hosts].filter(Boolean).join(" · "))}</div>` : ""}
       </div></div>
-      <div style="font-size:12.5px;color:var(--ink-label)">${esc(r.offering)}<br>
-        <b style="color:var(--ink-strong)">${fmtNum(r.downloads)}</b> per episode ·
-        <b style="color:var(--ink-strong)">${fmtMoney(r.cpm)}</b> CPM
-        ${r.weeks.length ? `<br>Weeks: ${esc(r.weeks.slice().sort().map(fmtWeek).join(", "))}` : ""}</div>
-      <div class="amt">${fmtMoney(kRate(r))}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start">
+        <select class="sel" data-kedit="offering" data-id="${r.id}" style="min-width:175px">
+          ${kOfferings.map(o => `<option${o === r.offering ? " selected" : ""}>${esc(o)}</option>`).join("")}
+        </select>
+        ${kWeekPicker(r)}
+        <input class="cell-in" type="number" min="0" step="500" value="${r.downloads}"
+          data-kedit="downloads" data-id="${r.id}" aria-label="Downloads for ${esc(r.name)}">
+        <input class="cell-in" type="number" min="0" step="1" value="${r.cpm}" style="width:72px"
+          data-kedit="cpm" data-id="${r.id}" aria-label="CPM for ${esc(r.name)}">
+      </div>
+      <div class="amt" data-krate="${r.id}">${fmtMoney(kRate(r))}</div>
     </div>`).join("")}
-    <div class="ptotal"><span>Total if they take every show</span><b>${fmtMoney(kTotal())}</b></div></div>`;
+    <div class="ptotal"><span>Total if they take every show</span><b id="k-ptotal">${fmtMoney(kTotal())}</b></div></div>`;
   }
 
   function kRender() {
@@ -2133,12 +2170,17 @@ window.__initResponses = function () {
 
     if (K.view !== "table" && !picked.length) {
       out.innerHTML = `<div class="empty"><h2>No shows selected</h2>
-        <p>Tick the shows you want on this rate card in the Table view, then come back to preview it.</p></div>`;
+        <p>Tick the shows you want on this rate card in the Table view, then come back to preview it.</p>
+        <p style="margin-top:14px"><button class="btn" data-kview="table">Go to Table</button></p></div>`;
       return;
     }
 
     const body = K.view === "cards" ? kCardsHTML() : K.view === "list" ? kListHTML() : kTableHTML();
     out.innerHTML = `
+      ${K.view !== "table" ? `<div class="prevbar">
+        <span><b>This is how the brand will see the card.</b> Everything stays editable here —
+        use the × to drop a show. Switch to Table to pick shows from the full roster.</span>
+        <button data-kview="table">Back to Table</button></div>` : ""}
       ${K.view === "table" ? `<div class="selbar">
         <span><b>${picked.length}</b> show${picked.length === 1 ? "" : "s"} selected for this rate card.
         Ticking a show adds it; the totals and the finalised card use only what's ticked.</span></div>` : ""}
@@ -2149,8 +2191,8 @@ window.__initResponses = function () {
       </div>
       <div class="viewbar">
         <span class="hint">${K.view === "table"
-          ? "Tick the shows to include, then edit their numbers. Switch views to preview the brand's card."
-          : "Preview of the brand's card — only selected shows appear here."}</span>
+          ? "Tick the shows to include, then edit their numbers here."
+          : "Only selected shows appear — edit them here or in Table."}</span>
         <div class="seg" role="group" aria-label="View">
           <button data-kview="table">Table</button>
           <button data-kview="cards">Cards</button>
@@ -2187,6 +2229,8 @@ window.__initResponses = function () {
     if (tf.length) { tf[3].textContent = fmtNum(kReach()); tf[5].textContent = fmtMoney(kTotal()); }
     const tots = document.querySelectorAll("#view-ratecard .totals .tot b");
     if (tots.length === 3) { tots[1].textContent = fmtNum(kReach()); tots[2].textContent = fmtMoney(kTotal()); }
+    const pt = document.getElementById("k-ptotal");
+    if (pt) pt.textContent = fmtMoney(kTotal());
   }
 
   function kStatus(msg, err) {
@@ -2310,6 +2354,13 @@ window.__initResponses = function () {
       if (!tog || w !== tog.parentElement) w.classList.remove("open");
     });
     if (tog) { tog.parentElement.classList.toggle("open"); return; }
+
+    const off = e.target.closest("[data-kpick-off]");
+    if (off) {
+      const r = K.rows.find(x => x.id === off.dataset.kpickOff);
+      if (r) { r.selected = false; K.saved = null; kRender(); }
+      return;
+    }
 
     const t = e.target.closest("[data-kview],#k-all,#k-none,#k-go,#k-copy");
     if (!t) return;
