@@ -169,6 +169,14 @@ tfoot td{background:var(--pink-pale);font-weight:600;color:var(--ink-strong);bor
   .showrow{grid-template-columns:1fr auto}
   .showrow .mid{grid-column:1/-1}
 }
+/* custom deal breakdown */
+.cmp-lines{margin-top:7px;display:grid;gap:4px;max-width:520px}
+.cmp-line{display:flex;justify-content:space-between;gap:14px;font-size:12.5px;color:var(--ink-muted)}
+.cmp-line b{color:var(--ink-body);font-weight:600;white-space:nowrap}
+.cmp-line em{font-style:normal;color:var(--indigo-soft)}
+.cmp-tag{display:inline-block;font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+  background:var(--indigo);color:#fff;border-radius:4px;padding:2px 7px;margin-left:7px}
+
 /* advertiser decisions */
 .dec{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:11px 0}
 .dec-lab{font-size:12px;color:var(--ink-label);margin-right:2px}
@@ -322,9 +330,9 @@ td.factcell{padding:0 16px;border-bottom:1px solid var(--line-light);background:
    ───────────────────────────────────────────────────────────── */
 /* Make webhook that RECEIVES the advertiser's approvals and change requests.
    Leave empty and the buttons still work, but nothing is sent. */
-const RESPONSE_URL = "https://hook.us1.make.com/vethygxrcaheajrm3g5foj2isedsgnfp";
+const RESPONSE_URL = "";
 
-const CARD_URL = "https://hook.us1.make.com/7lvrd0sr5rcy96oc6xfolybajaktby45";   /* Make webhook: takes ?code=… and returns that one rate card */
+const CARD_URL = "";   /* Make webhook: takes ?code=… and returns that one rate card */
 
 /* Offerings from the ratecard workbook. A card may send its own list
    as card.offerings; otherwise these are used. */
@@ -501,10 +509,23 @@ function artHTML(s) {
     : `<div class="art art-ph" aria-hidden="true">${esc(initials(s.name))}</div>`;
 }
 
+/* A custom deal arrives with its components; its rate is their sum. */
+function componentsHTML(s) {
+  const c = s.components || [];
+  if (!c.length) return "";
+  return `<div class="cmp-lines">${c.map(x => `<div class="cmp-line">
+      <span>${x.quantity}× ${esc(x.format)}
+        <em>${x.pricedBy === "Flat fee" ? fmtMoney(x.unitPrice) + " each" : fmtMoney(x.unitPrice) + " CPM"}</em>
+        ${x.note ? `<em>· ${esc(x.note)}</em>` : ""}</span>
+      <b>${fmtMoney(x.amount)}</b></div>`).join("")}</div>`;
+}
+
 /* rate = downloads × CPM ÷ 1000, the same formula as the ratecard workbook */
 const rateOf = s => (s.rate !== undefined && s.rate !== null)
   ? Number(s.rate)
-  : (Number(s.downloads) || 0) * (Number(s.cpm) || 0) / 1000;
+  : (s.components || []).length
+    ? s.components.reduce((a, c) => a + (Number(c.amount) || 0), 0)
+    : (Number(s.downloads) || 0) * (Number(s.cpm) || 0) / 1000;
 
 let CARD = null;
 let VIEW = "table";
@@ -586,7 +607,8 @@ function render(card) {
         ? `<select class="offer-sel" data-edit="offering" data-i="${s.idx}" aria-label="Offering for ${esc(s.name)}">
              ${offerings.map(o => `<option${o === (s.offering || "To be agreed") ? " selected" : ""}>${esc(o)}</option>`).join("")}
            </select>`
-        : `<span class="offer">${esc(s.offering || "To be agreed")}</span>`}</td>
+        : `<span class="offer">${esc(s.offering || "To be agreed")}</span>${
+            (s.components || []).length ? `<span class="cmp-tag">custom</span>` : ""}${componentsHTML(s)}`}</td>
       <td>${editable ? weekPickerHTML(s, weekOptions) : weekListHTML(s)}</td>
       <td class="num">${editable
         ? `<input class="cell-in" type="number" min="0" step="500" value="${Number(s.downloads) || 0}"
@@ -666,7 +688,9 @@ function cardsHTML(shows, showCpm, total) {
         <div class="nm">${esc(s.name)}</div>
         ${s.genre || s.hosts ? `<div class="sub">${esc([s.genre, s.hosts].filter(Boolean).join(" · "))}</div>` : ""}
       </div>${factToggleHTML(s)}</div>
-      <div class="row"><span>Offering</span><b>${esc(s.offering || "To be agreed")}</b></div>
+      <div class="row" style="align-items:flex-start"><span>Offering</span>
+        <b style="text-align:right">${esc(s.offering || "To be agreed")}</b></div>
+      ${componentsHTML(s)}
       <div class="row"><span>Flight weeks</span><b>${esc(weekText(s) || "To be agreed")}</b></div>
       <div class="row"><span>Audience / episode</span><b>${fmtNum(s.downloads)}</b></div>
       ${showCpm ? `<div class="row"><span>CPM</span><b>${fmtMoney(s.cpm)}</b></div>` : ""}
@@ -683,7 +707,7 @@ function rowsHTML(shows, showCpm, total) {
         <div class="nm">${esc(s.name)}</div>
         ${s.genre || s.hosts ? `<div class="sub">${esc([s.genre, s.hosts].filter(Boolean).join(" · "))}</div>` : ""}
       </div></div>
-      <div class="mid">${esc(s.offering || "To be agreed")}<br>
+      <div class="mid">${esc(s.offering || "To be agreed")}${componentsHTML(s)}<br>
         <b>${fmtNum(s.downloads)}</b> per episode${showCpm ? ` · <b>${fmtMoney(s.cpm)}</b> CPM` : ""}
         ${weekText(s) ? `<br>Weeks: ${esc(weekText(s))}` : ""}</div>
       <div class="amt">${fmtMoney(rateOf(s))}</div>
@@ -855,6 +879,10 @@ async function sendResponse() {
         name: s.name, offering: s.offering || "", rate: rateOf(s),
         downloads: Number(s.downloads) || 0, cpm: Number(s.cpm) || 0,
         /* the dates themselves, exactly as the advertiser saw them */
+        components: s.components || [],
+        componentsDisplay: (s.components || []).map(c =>
+          `${c.quantity}× ${c.format} @ ${c.pricedBy === "Flat fee"
+            ? fmtMoney(c.unitPrice) + " flat" : fmtMoney(c.unitPrice) + " CPM"} = ${fmtMoney(c.amount)}`).join("; "),
         flightWeeks: weekText(s),
         flightWeeksList: (s.weeks && s.weeks.length)
           ? s.weeks.slice().sort()
