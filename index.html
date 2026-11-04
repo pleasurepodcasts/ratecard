@@ -174,8 +174,6 @@ tfoot td{background:var(--pink-pale);font-weight:600;color:var(--ink-strong);bor
 .cmp-line{display:flex;justify-content:space-between;gap:14px;font-size:12.5px;color:var(--ink-muted)}
 .cmp-line b{color:var(--ink-body);font-weight:600;white-space:nowrap}
 .cmp-line em{font-style:normal;color:var(--indigo-soft)}
-.cmp-tag{display:inline-block;font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
-  background:var(--indigo);color:#fff;border-radius:4px;padding:2px 7px;margin-left:7px}
 
 /* advertiser decisions */
 .dec{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:11px 0}
@@ -330,9 +328,9 @@ td.factcell{padding:0 16px;border-bottom:1px solid var(--line-light);background:
    ───────────────────────────────────────────────────────────── */
 /* Make webhook that RECEIVES the advertiser's approvals and change requests.
    Leave empty and the buttons still work, but nothing is sent. */
-const RESPONSE_URL = "https://hook.us1.make.com/vethygxrcaheajrm3g5foj2isedsgnfp";
+const RESPONSE_URL = "";
 
-const CARD_URL = "https://hook.us1.make.com/7lvrd0sr5rcy96oc6xfolybajaktby45";   /* Make webhook: takes ?code=… and returns that one rate card */
+const CARD_URL = "";   /* Make webhook: takes ?code=… and returns that one rate card */
 
 /* Offerings from the ratecard workbook. A card may send its own list
    as card.offerings; otherwise these are used. */
@@ -607,8 +605,7 @@ function render(card) {
         ? `<select class="offer-sel" data-edit="offering" data-i="${s.idx}" aria-label="Offering for ${esc(s.name)}">
              ${offerings.map(o => `<option${o === (s.offering || "To be agreed") ? " selected" : ""}>${esc(o)}</option>`).join("")}
            </select>`
-        : `<span class="offer">${esc(s.offering || "To be agreed")}</span>${
-            (s.components || []).length ? `<span class="cmp-tag">custom</span>` : ""}${componentsHTML(s)}`}</td>
+        : `<span class="offer">${esc(s.offering || "To be agreed")}</span>${componentsHTML(s)}`}</td>
       <td>${editable ? weekPickerHTML(s, weekOptions) : weekListHTML(s)}</td>
       <td class="num">${editable
         ? `<input class="cell-in" type="number" min="0" step="500" value="${Number(s.downloads) || 0}"
