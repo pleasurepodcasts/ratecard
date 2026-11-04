@@ -330,9 +330,9 @@ td.factcell{padding:0 16px;border-bottom:1px solid var(--line-light);background:
    ───────────────────────────────────────────────────────────── */
 /* Make webhook that RECEIVES the advertiser's approvals and change requests.
    Leave empty and the buttons still work, but nothing is sent. */
-const RESPONSE_URL = "https://hook.us1.make.com/vethygxrcaheajrm3g5foj2isedsgnfp";
+const RESPONSE_URL = "";
 
-const CARD_URL = "https://hook.us1.make.com/7lvrd0sr5rcy96oc6xfolybajaktby45";   /* Make webhook: takes ?code=… and returns that one rate card */
+const CARD_URL = "";   /* Make webhook: takes ?code=… and returns that one rate card */
 
 /* Offerings from the ratecard workbook. A card may send its own list
    as card.offerings; otherwise these are used. */
@@ -974,10 +974,29 @@ document.addEventListener("click", e => {
 document.getElementById("unlock").addEventListener("click", unlock);
 document.getElementById("pw").addEventListener("keydown", e => { if (e.key === "Enter") unlock(); });
 
+/* A link may carry the code: ?code=XXXX-XXXX. It's still checked by Make —
+   this only saves the advertiser typing it. */
+function codeFromLink() {
+  try {
+    const q = new URLSearchParams(location.search).get("code");
+    if (q) return q.trim();
+    const hash = (location.hash || "").replace(/^#/, "");
+    if (/^code=/.test(hash)) return decodeURIComponent(hash.slice(5)).trim();
+  } catch (e) {}
+  return "";
+}
+
 (function init() {
   document.getElementById("gate-intro").textContent =
     "Enter the access code we sent you to view your rate card.";
-  document.getElementById("pw").focus();
+  const linked = codeFromLink();
+  if (linked) {
+    document.getElementById("pw").value = linked;
+    document.getElementById("gate-intro").textContent = "Opening your rate card…";
+    unlock();
+  } else {
+    document.getElementById("pw").focus();
+  }
 })();
 </script>
 </body>
